@@ -1,0 +1,12 @@
+[submodule "submodules/frappe_ai"]
+	path = submodules/frappe_ai
+	url = https://github.com/vyogotech/frappe_ai.git
+	branch = frappe-ai-agent-integration
+[submodule "submodules/frappe-ai-agent"]
+	path = submodules/frappe-ai-agent
+	url = https://github.com/vyogotech/frappe-ai-agent.git
+	branch = main
+[submodule "submodules/frappe-mcp-server"]
+	path = submodules/frappe-mcp-server
+	url = https://github.com/vyogotech/frappe-mcp-server.git
+	branch = feature/mcp-go-sdk
