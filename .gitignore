@@ -1,0 +1,13 @@
+# Local env files
+.env
+.env.local
+
+# Compose overrides
+docker-compose.override.yml
+
+# Editor
+.DS_Store
+.idea/
+.vscode/
+
+# Bootstrap runtime artifacts (flag file lives in a named volume, not on disk here)
