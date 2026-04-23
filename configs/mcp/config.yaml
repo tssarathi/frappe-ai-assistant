@@ -48,7 +48,11 @@ auth:
     issuer_url: "http://erpnext:8000"
     trusted_clients:
       - "frappe-mcp-backend"
-    validate_remote: false
+    # Must be true: MCP calls Frappe's /api/method/frappe.auth.get_logged_user
+    # to validate the sid AND to capture the X-Frappe-CSRF-Token response header,
+    # which is required for POST/PUT/DELETE. With this off, every sid is treated
+    # as anonymous and write operations fail.
+    validate_remote: true
     timeout: "30s"
   token_cache:
     ttl: "5m"
