@@ -1,0 +1,32 @@
+name: vyogo
+
+networks:
+  vyogo-net:
+    driver: bridge
+
+volumes:
+  erpnext_sites:
+  erpnext_logs:
+
+services:
+  erpnext:
+    image: docker.io/vyogo/erpnext:sne-version-15
+    ports:
+      - "${ERPNEXT_PORT:-8000}:8000"
+    environment:
+      SITES: "${SITE_NAME:-erpnext.local}"
+      SITE_NAME: "${SITE_NAME:-erpnext.local}"
+      ADMIN_PASSWORD: "${ERPNEXT_ADMIN_PASSWORD:-admin}"
+      DEVELOPER_MODE: "1"
+    volumes:
+      - erpnext_sites:/home/frappe/frappe-bench/sites
+      - erpnext_logs:/home/frappe/frappe-bench/logs
+      - ./submodules/frappe_ai:/home/frappe/frappe-bench/apps/frappe_ai
+    networks:
+      - vyogo-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000 >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
