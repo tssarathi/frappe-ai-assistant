@@ -41,11 +41,14 @@ Authentication is the Frappe `sid` cookie, end-to-end. No API keys are generated
 `bootstrap/bootstrap.sh` is idempotent. On the very first `make up` it:
 
 1. Waits for ERPNext to answer.
-2. Registers `frappe_ai` (`bench get-app`).
-3. Installs it into the site (`bench install-app`).
-4. Builds its frontend assets (`bench build`).
-5. Seeds `MCP Server Settings`: `enabled=1`, `agent_url=http://localhost:8484`, `timeout=30`.
-6. Writes `/home/frappe/frappe-bench/sites/.vyogo_bootstrapped`.
+2. Auto-detects the site name from `sites/` (the image bakes `dev.localhost` and ignores `SITE_NAME`).
+3. Patches `common_site_config.json` to point DB/Redis at the `erpnext` container hostname (restored on exit via `trap`).
+4. Pip-installs `frappe_ai` into the bench virtualenv (`./env/bin/pip install -e apps/frappe_ai`).
+5. Registers `frappe_ai` (`bench get-app`).
+6. Installs it into the site (`bench install-app`).
+7. Builds its frontend assets (`bench build`).
+8. Seeds `MCP Server Settings`: `enabled=1`, `agent_url=http://localhost:8484`, `timeout=30`.
+9. Writes `/home/frappe/frappe-bench/sites/.vyogo_bootstrapped`.
 
 Subsequent boots see the flag and exit immediately.
 

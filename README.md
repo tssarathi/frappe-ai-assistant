@@ -11,6 +11,8 @@ This repo glues four pieces together:
 
 A one-shot `bootstrap` container installs `frappe_ai` into ERPNext on first boot. After that the stack comes up cleanly on every subsequent `make up`.
 
+> **Local development only.** The defaults (`ERPNEXT_ADMIN_PASSWORD=admin`, no TLS, ports bound to `0.0.0.0`) are suitable for a dev or demo machine. Do not expose this stack to the public internet.
+
 ## Quickstart
 
 ```bash
@@ -22,8 +24,9 @@ cp .env.example .env
 # OpenAI / Anthropic key under one of the commented blocks.
 
 make up
-# First boot takes ~2 minutes while ERPNext initialises, then bootstrap
-# installs frappe_ai. Watch with:   make logs
+# First boot takes 3–10 minutes: ERPNext initialises, then bootstrap
+# runs bench install-app + bench build for the chat frontend.
+# Watch progress with:   make logs
 ```
 
 Then open <http://localhost:8000> and log in as `Administrator` / `admin`, and navigate to the **frappe_ai** page.
@@ -47,6 +50,7 @@ Then open <http://localhost:8000> and log in as `Administrator` / `admin`, and n
 - **`frappe_ai` page 404.** Bootstrap may have failed. `make logs SVC=bootstrap`. If the flag file wasn't written, `make up` will retry automatically.
 - **Change model.** Edit `LLM_MODEL` (and `LLM_BASE_URL` / `LLM_API_KEY` if switching providers) in `.env`, then `make up`.
 - **Start from scratch.** `make reset`.
+- **Linux without Docker Desktop.** `host.docker.internal` is mapped via the `extra_hosts: host-gateway` entry already in `docker-compose.yml` — no extra config needed. Make sure your local Ollama is listening on `0.0.0.0:11434`, not just `127.0.0.1`.
 
 ## Architecture
 

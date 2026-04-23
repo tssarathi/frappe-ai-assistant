@@ -41,7 +41,7 @@ services:
       AI_AGENT_PORT: "8484"
       AI_AGENT_WORKERS: "4"
       AI_AGENT_CORS_ORIGINS: '["http://localhost:${ERPNEXT_PORT:-8000}"]'
-      AI_AGENT_LLM_PROVIDER: "${LLM_PROVIDER:-openai}"
+      AI_AGENT_LLM_PROVIDER: "${LLM_PROVIDER:-ollama}"
       AI_AGENT_LLM_BASE_URL: "${LLM_BASE_URL}"
       AI_AGENT_LLM_API_KEY: "${LLM_API_KEY}"
       AI_AGENT_LLM_MODEL: "${LLM_MODEL}"

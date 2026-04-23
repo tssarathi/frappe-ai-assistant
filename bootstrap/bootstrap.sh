@@ -38,8 +38,9 @@ fi
 
 cd /home/frappe/frappe-bench
 
-# Auto-detect the actual site name (the image may create a different name than SITE_NAME).
-# The sites/ directory contains: apps.json, apps.txt, assets, common_site_config.json, <site-dir>
+# Auto-detect the actual site name. In practice the vyogo/erpnext image creates
+# a site named dev.localhost and ignores SITE_NAME, so the env var is a hint
+# only — the detect-from-disk branch below is what fires on the default image.
 SITE="${SITE_NAME:-erpnext.local}"
 if [ ! -d "sites/$SITE" ]; then
   log "site '$SITE' not found; auto-detecting from sites/ directory ..."
