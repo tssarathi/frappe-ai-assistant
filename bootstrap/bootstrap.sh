@@ -94,13 +94,34 @@ PYEOF
 log "pip-installing frappe_ai into bench virtualenv"
 ./env/bin/pip install -q -e "$APP_PATH"
 
+# Build the Vite-based chat UI. frappe_ai/ contains TWO frontends:
+#   - frappe_ai/public/            — small sidebar CSS/JS, built by `bench build`
+#   - frappe_ai/frontend/          — the full Vue/Vite chat app, served from
+#                                    frontend/dist/ and referenced by hooks.py
+# `bench build` does NOT run `vite build`, so we must do it explicitly here.
+# `npm run build` also invokes scripts/update-hooks.js which rewrites hooks.py
+# with the hashed bundle filename Vite emits.
+if [ -f "$APP_PATH/frontend/package.json" ]; then
+  log "building frappe_ai Vue frontend (Vite) — first boot installs node_modules (~1-2 min)"
+  pushd "$APP_PATH/frontend" >/dev/null
+  if [ ! -d node_modules ]; then
+    log "  running npm install"
+    npm install --silent --no-audit --no-fund --no-progress
+  fi
+  log "  running vite build"
+  npm run build
+  popd >/dev/null
+else
+  log "WARNING: no frappe_ai/frontend/package.json — Vue chat UI will not be available"
+fi
+
 log "registering frappe_ai with bench"
 bench get-app --skip-assets "file://$APP_PATH" || log "get-app returned non-zero (likely already registered) — continuing"
 
 log "installing frappe_ai into site $SITE"
 bench --site "$SITE" install-app frappe_ai
 
-log "building frappe_ai assets"
+log "building frappe_ai assets (Frappe esbuild for public/ only)"
 bench build --app frappe_ai
 
 log "seeding MCP Server Settings (enabled=1, agent_url=$AGENT_URL_DEFAULT)"
