@@ -39,5 +39,17 @@ llm:
     enabled: false
 
 auth:
+  # enabled+required so MCP uses OAuth2 token pass-through (sid-cookie model).
+  # API key/secret intentionally blank; token_info_url points to internal erpnext.
   enabled: true
   require_auth: true
+  oauth2:
+    token_info_url: "http://erpnext:8000/api/method/frappe.integrations.oauth2.openid.userinfo"
+    issuer_url: "http://erpnext:8000"
+    trusted_clients:
+      - "frappe-mcp-backend"
+    validate_remote: false
+    timeout: "30s"
+  token_cache:
+    ttl: "5m"
+    cleanup_interval: "10m"

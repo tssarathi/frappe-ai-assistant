@@ -54,6 +54,36 @@ services:
     depends_on:
       erpnext:
         condition: service_healthy
+      mcp:
+        condition: service_started
+    networks:
+      - vyogo-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  mcp:
+    build:
+      context: ./submodules/frappe-mcp-server
+    # No ports published: mcp is internal-only. Uncomment for debugging.
+    # ports:
+    #   - "8080:8080"
+    environment:
+      FRAPPE_BASE_URL: "http://erpnext:8000"
+      # API key/secret blank — sid cookie is forwarded per-request.
+      FRAPPE_API_KEY: ""
+      FRAPPE_API_SECRET: ""
+      LLM_BASE_URL: "${LLM_BASE_URL}"
+      LLM_API_KEY: "${LLM_API_KEY}"
+      LLM_MODEL: "${LLM_MODEL}"
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "8080"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+    volumes:
+      - ./configs/mcp/config.yaml:/app/config.yaml:ro
+    depends_on:
+      erpnext:
+        condition: service_healthy
     networks:
       - vyogo-net
     extra_hosts:
