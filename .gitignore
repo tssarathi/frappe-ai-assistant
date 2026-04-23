@@ -11,3 +11,8 @@ docker-compose.override.yml
 .vscode/
 
 # Bootstrap runtime artifacts (flag file lives in a named volume, not on disk here)
+
+# Defensive ignores for stray host-side files
+__pycache__/
+*.pyc
+*.log
