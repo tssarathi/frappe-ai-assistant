@@ -56,6 +56,8 @@ services:
         condition: service_healthy
       mcp:
         condition: service_started
+      bootstrap:
+        condition: service_completed_successfully
     networks:
       - vyogo-net
     extra_hosts:
@@ -92,8 +94,27 @@ services:
     depends_on:
       erpnext:
         condition: service_healthy
+      bootstrap:
+        condition: service_completed_successfully
     networks:
       - vyogo-net
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
+
+  bootstrap:
+    build:
+      context: ./bootstrap
+    environment:
+      SITE_NAME: "${SITE_NAME:-erpnext.local}"
+      ERPNEXT_URL: "http://erpnext:8000"
+      AGENT_URL_DEFAULT: "http://localhost:${AGENT_PORT:-8484}"
+    volumes:
+      - erpnext_sites:/home/frappe/frappe-bench/sites
+      - ./submodules/frappe_ai:/home/frappe/frappe-bench/apps/frappe_ai
+    depends_on:
+      erpnext:
+        condition: service_healthy
+    networks:
+      - vyogo-net
+    restart: "no"
