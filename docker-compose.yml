@@ -10,7 +10,7 @@ volumes:
 
 services:
   erpnext:
-    image: docker.io/vyogo/erpnext:sne-version-15
+    image: docker.io/vyogo/erpnext:sne-develop
     ports:
       - "${ERPNEXT_PORT:-8000}:8000"
     environment:

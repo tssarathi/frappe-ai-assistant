@@ -1,4 +1,4 @@
-FROM docker.io/vyogo/erpnext:sne-version-15
+FROM docker.io/vyogo/erpnext:sne-develop
 
 USER root
 # curl is already present in the CentOS Stream 9 base image; no extra install needed.

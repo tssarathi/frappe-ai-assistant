@@ -4,7 +4,7 @@ Docker Compose orchestrator for the Vyogo Frappe/ERPNext + AI chat stack.
 
 This repo glues four pieces together:
 
-1. **ERPNext** — `docker.io/vyogo/erpnext:sne-version-15`.
+1. **ERPNext** — `docker.io/vyogo/erpnext:sne-develop`.
 2. **`frappe_ai`** — Frappe app providing the chat UI (git submodule).
 3. **`frappe-ai-agent`** — FastAPI chat agent (git submodule).
 4. **`frappe-mcp-server`** — MCP server exposing ERPNext as tools (git submodule).

@@ -15,7 +15,7 @@
               network: vyogo-net (bridge)
 ```
 
-- `erpnext` — `docker.io/vyogo/erpnext:sne-version-15`. Serves the `frappe_ai` chat page.
+- `erpnext` — `docker.io/vyogo/erpnext:sne-develop`. Serves the `frappe_ai` chat page.
 - `agent` — built from `submodules/frappe-ai-agent`. Receives chat, calls LLM, calls MCP.
 - `mcp` — built from `submodules/frappe-mcp-server`. Exposes ERPNext as MCP tools.
 - `bootstrap` — one-shot. Installs `frappe_ai` into ERPNext on first boot, seeds `MCP Server Settings`, exits.
