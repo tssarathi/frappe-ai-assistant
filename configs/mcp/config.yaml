@@ -1,0 +1,43 @@
+# MCP server config for Vyogo orchestrator.
+# Env-variable interpolation is performed at container start.
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  timeout: "30s"
+  max_connections: 100
+
+erpnext:
+  # Container-internal hostname (agent and mcp are on the same docker network).
+  base_url: "http://erpnext:8000"
+  # API key/secret intentionally left blank — this stack uses sid-cookie
+  # pass-through auth end-to-end. MCP falls through to sid when these are empty.
+  api_key: ""
+  api_secret: ""
+  timeout: "30s"
+  rate_limit:
+    requests_per_second: 10
+    burst: 20
+  retry:
+    max_attempts: 5
+    initial_delay: "500ms"
+    max_delay: "5s"
+
+logging:
+  level: "${LOG_LEVEL}"
+  format: "json"
+
+llm:
+  provider_type: "openai-compatible"
+  base_url: "${LLM_BASE_URL}"
+  api_key: "${LLM_API_KEY}"
+  model: "${LLM_MODEL}"
+  timeout: "30s"
+  max_tokens: 1000
+  temperature: 0.3
+  fallback:
+    enabled: false
+
+auth:
+  enabled: true
+  require_auth: true
