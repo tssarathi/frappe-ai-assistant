@@ -55,3 +55,18 @@ Then open <http://localhost:8000> and log in as `Administrator` / `admin`, and n
 ## Architecture
 
 See [`docs/architecture.md`](docs/architecture.md).
+
+## Submodule branch pins
+
+The three submodules are intentionally pinned to their active integration
+branches rather than each project's own `main`:
+
+| Submodule | Pinned branch | Why |
+|---|---|---|
+| `frappe_ai` | `frappe-ai-agent-integration` | Active feature-integration line for the chat UI; merged back when the `frappe_ai` app cuts a release. |
+| `frappe-ai-agent` | `main` | Already tracks the project's main line. |
+| `frappe-mcp-server` | `feature/mcp-go-sdk` | The current MCP server implementation. This branch has been the development line since the Go rewrite; the project's `main` is a legacy Python baseline that has not been updated. Treat this pin as the source of truth until the upstream project completes its Go-migration cutover and retargets `main`. |
+
+If you bump a pin, make sure the SHA you land on exists on the remote
+(`git -C submodules/<name> push origin <branch>` before bumping the outer repo).
+Rebases or force-pushes on the feature branches will orphan the outer pin.
