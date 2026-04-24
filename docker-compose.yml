@@ -10,7 +10,12 @@ volumes:
 
 services:
   erpnext:
-    image: docker.io/vyogo/erpnext:sne-develop
+    # Pinned by digest so `make up` is reproducible across machines and over
+    # time. The `sne-develop` tag floats; `make update` is the only place that
+    # should re-pin. To bump, run:
+    #   docker buildx imagetools inspect docker.io/vyogo/erpnext:sne-develop
+    # and copy the index Digest into the line below.
+    image: docker.io/vyogo/erpnext:sne-develop@sha256:a785eb57cbfce27450c68a2b246785689ef21a8e1b6e8166a3f0469907c73dab
     ports:
       - "${ERPNEXT_PORT:-8000}:8000"
     environment:
