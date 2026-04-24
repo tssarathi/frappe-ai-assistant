@@ -62,9 +62,16 @@ COMMON_CFG="sites/common_site_config.json"
 COMMON_CFG_BAK="${COMMON_CFG}.bootstrap_bak"
 
 restore_cfg() {
-  if [ -f "$COMMON_CFG_BAK" ]; then
-    log "restoring original common_site_config.json"
-    mv "$COMMON_CFG_BAK" "$COMMON_CFG"
+  if [ ! -f "$COMMON_CFG_BAK" ]; then
+    return 0
+  fi
+  log "restoring original common_site_config.json"
+  if ! mv "$COMMON_CFG_BAK" "$COMMON_CFG"; then
+    # If this fails the ERPNext container is left with our cross-container
+    # db/redis patches and won't boot cleanly — log loudly so the operator
+    # sees it even if the main script already exited successfully.
+    log "ERROR: failed to restore $COMMON_CFG from $COMMON_CFG_BAK — the ERPNext container will need manual recovery"
+    return 1
   fi
 }
 trap restore_cfg EXIT
