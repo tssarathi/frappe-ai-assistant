@@ -16,3 +16,6 @@ docker-compose.override.yml
 __pycache__/
 *.pyc
 *.log
+
+# Superpowers brainstorming companion (local mockups)
+.superpowers/
