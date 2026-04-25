@@ -5,7 +5,9 @@ USER root
 COPY bootstrap.sh /usr/local/bin/bootstrap.sh
 RUN chmod +x /usr/local/bin/bootstrap.sh
 
-# Must run as the frappe user so bench file ownership is correct.
-USER frappe
+# Stay as root so the entrypoint can chown the named-volume mountpoint
+# (frontend/node_modules) which Docker creates as root by default. The
+# script self-drops to the frappe user after the fix-up — see the
+# `id -u = 0` block at the top of bootstrap.sh.
 WORKDIR /home/frappe/frappe-bench
 ENTRYPOINT ["/usr/local/bin/bootstrap.sh"]
