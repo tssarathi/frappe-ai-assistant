@@ -5,6 +5,29 @@
 
 set -euo pipefail
 
+# When the container starts as root (Dockerfile entrypoint), fix permissions
+# on the node_modules named-volume mount (Docker creates it root-owned, but
+# everything else here runs as the frappe user) and re-exec as frappe.
+if [ "$(id -u)" = "0" ]; then
+  NM=/home/frappe/frappe-bench/apps/frappe_ai/frontend/node_modules
+  if [ -d "$NM" ]; then
+    # The vyogo/erpnext image puts the frappe user (UID 1001) in the root
+    # group (GID 0), with no `frappe` group — chown must use root as the
+    # group, matching the existing ownership of the surrounding files.
+    chown -R frappe:root "$NM"
+  fi
+  # Use `runuser -u` (no -l) so PATH stays as the image set it — that PATH
+  # includes /var/lib/redis/.local/bin where `bench` lives. `runuser -l`
+  # would reset to a default login PATH that drops bench.
+  # We must also force HOME=/var/lib/redis: the vyogo/erpnext image installs
+  # bench's Python package into /var/lib/redis/.local/lib (treating that as
+  # the frappe user's effective home, despite /etc/passwd saying /home/frappe).
+  # Without this, `bench` resolves but its `from bench.cli import cli` import
+  # fails with ModuleNotFoundError because Python's user-site path uses HOME.
+  # -- preserves argv passthrough.
+  exec runuser -u frappe -- env HOME=/var/lib/redis /usr/local/bin/bootstrap.sh "$@"
+fi
+
 FLAG_FILE="/home/frappe/frappe-bench/sites/.vyogo_bootstrapped"
 APP_PATH="/home/frappe/frappe-bench/apps/frappe_ai"
 ERPNEXT_URL="${ERPNEXT_URL:-http://erpnext:8000}"
@@ -111,7 +134,13 @@ log "pip-installing frappe_ai into bench virtualenv"
 if [ -f "$APP_PATH/frontend/package.json" ]; then
   log "building frappe_ai Vue frontend (Vite) — first boot installs node_modules (~1-2 min)"
   pushd "$APP_PATH/frontend" >/dev/null
-  if [ ! -d node_modules ]; then
+  # Check for the actual vite binary, not just the directory. Reasons:
+  # 1. With the named-volume mask in docker-compose.yml, node_modules is
+  #    a fresh empty directory on first boot — `-d node_modules` would
+  #    pass and skip the install.
+  # 2. If a previous install was interrupted, .bin/vite might be missing.
+  # 3. After a vite version bump, `.bin/vite` is regenerated on install.
+  if [ ! -x node_modules/.bin/vite ]; then
     log "  running npm install"
     npm install --silent --no-audit --no-fund --no-progress
   fi
@@ -131,9 +160,9 @@ bench --site "$SITE" install-app frappe_ai
 log "building frappe_ai assets (Frappe esbuild for public/ only)"
 bench build --app frappe_ai
 
-log "seeding MCP Server Settings (enabled=1, agent_url=$AGENT_URL_DEFAULT)"
+log "seeding AI Assistant Settings (enabled=1, agent_url=$AGENT_URL_DEFAULT)"
 bench --site "$SITE" execute frappe.client.set_value \
-  --kwargs "{\"doctype\": \"MCP Server Settings\", \"name\": \"MCP Server Settings\", \"fieldname\": {\"enabled\": 1, \"agent_url\": \"$AGENT_URL_DEFAULT\", \"timeout\": 30}}"
+  --kwargs "{\"doctype\": \"AI Assistant Settings\", \"name\": \"AI Assistant Settings\", \"fieldname\": {\"enabled\": 1, \"agent_url\": \"$AGENT_URL_DEFAULT\", \"timeout\": 30}}"
 
 log "writing flag file at $FLAG_FILE"
 touch "$FLAG_FILE"

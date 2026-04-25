@@ -7,6 +7,17 @@ networks:
 volumes:
   erpnext_sites:
   erpnext_logs:
+  # MariaDB data dir. The vyogo/erpnext image bundles MariaDB inside the
+  # erpnext container at /var/lib/mysql, so without this volume the entire
+  # database is in the container's writable layer and any `docker compose up`
+  # recreate (env change, image bump, etc.) wipes the site DB.
+  erpnext_mysql:
+  # Masks the host's frontend/node_modules during bootstrap. Vite 8+ uses
+  # rolldown with per-platform native bindings; without this volume, the
+  # bind-mounted host node_modules (e.g. darwin-arm64 from a Mac dev) lacks
+  # the container's linux-x64 binding and `npm run build` fails with
+  # MODULE_NOT_FOUND on @rolldown/binding-linux-*.
+  frappe_ai_node_modules:
 
 services:
   erpnext:
@@ -23,9 +34,15 @@ services:
       SITE_NAME: "${SITE_NAME:-erpnext.local}"
       ADMIN_PASSWORD: "${ERPNEXT_ADMIN_PASSWORD:-admin}"
       DEVELOPER_MODE: "1"
+      # Server-side agent URL for frappe_ai's ai_query.py (test_connection / fallback
+      # query). The doctype's `agent_url` is browser-facing (http://localhost:8484)
+      # and unreachable from inside this container; this env points the same code at
+      # the sibling agent container over the docker network.
+      AI_AGENT_INTERNAL_URL: "http://agent:8484"
     volumes:
       - erpnext_sites:/home/frappe/frappe-bench/sites
       - erpnext_logs:/home/frappe/frappe-bench/logs
+      - erpnext_mysql:/var/lib/mysql
       - ./submodules/frappe_ai:/home/frappe/frappe-bench/apps/frappe_ai
     networks:
       - vyogo-net
@@ -117,6 +134,8 @@ services:
     volumes:
       - erpnext_sites:/home/frappe/frappe-bench/sites
       - ./submodules/frappe_ai:/home/frappe/frappe-bench/apps/frappe_ai
+      # See volume comment above: keep node_modules out of the bind mount.
+      - frappe_ai_node_modules:/home/frappe/frappe-bench/apps/frappe_ai/frontend/node_modules
     depends_on:
       erpnext:
         condition: service_healthy
