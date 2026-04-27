@@ -4,7 +4,7 @@
 SHELL := /usr/bin/env bash
 COMPOSE := docker compose
 
-.PHONY: help up down logs ps shell reset update build mcp-binary
+.PHONY: help up down logs ps shell reset update build mcp-binary reload-frontend reload-agent reload-mcp
 
 # The mcp Dockerfile expects a pre-built Linux binary at
 # submodules/frappe-mcp-server/frappe-mcp-server (see commit baacaad in that
@@ -22,6 +22,11 @@ help:
 	@echo "  make reset    DESTRUCTIVE. Remove containers + volumes for a clean first-boot"
 	@echo "  make update   Pull submodule updates, then rebuild"
 	@echo "  make build    Rebuild images without starting"
+	@echo ""
+	@echo "Hot-reload after editing source (skips bootstrap fingerprint cache):"
+	@echo "  make reload-frontend  Recompile frappe_ai Vue bundle inside ERPNext + bench build"
+	@echo "  make reload-agent     Rebuild + restart vyogo-agent (pip-installed Python)"
+	@echo "  make reload-mcp       Rebuild Go binary + image + restart vyogo-mcp"
 
 up: mcp-binary
 	@test -f .env || (echo "error: .env not found. Run: cp .env.example .env" && exit 1)
@@ -56,3 +61,25 @@ reset:
 	@read -p "Type 'reset' to confirm: " answer && [ "$$answer" = "reset" ] || (echo "aborted" && exit 1)
 	$(COMPOSE) down -v
 	@echo "reset complete — next 'make up' will re-bootstrap from scratch"
+
+# Hot-reload targets. Bootstrap's fingerprint cache hashes compiled dist/
+# files, so plain `docker compose up bootstrap` is a no-op when only source
+# changes. These targets bypass it and force the rebuild path that actually
+# picks up the new source.
+
+reload-frontend:
+	@echo "Rebuilding frappe_ai frontend bundle inside ERPNext container…"
+	$(COMPOSE) exec -u frappe erpnext bash -c "cd /home/frappe/frappe-bench/apps/frappe_ai/frontend && npm run build && cd /home/frappe/frappe-bench && bench build --app frappe_ai"
+	@echo "Done. Hard-refresh browser (Cmd-Shift-R) to pick up the new bundle."
+
+reload-agent:
+	@echo "Rebuilding vyogo-agent image and restarting…"
+	$(COMPOSE) build agent
+	$(COMPOSE) up -d --force-recreate agent
+	@echo "Done."
+
+reload-mcp: mcp-binary
+	@echo "Rebuilding vyogo-mcp image and restarting…"
+	$(COMPOSE) build mcp
+	$(COMPOSE) up -d --force-recreate mcp
+	@echo "Done."
