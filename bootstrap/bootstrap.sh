@@ -35,8 +35,91 @@ AGENT_URL_DEFAULT="${AGENT_URL_DEFAULT:-http://localhost:8484}"
 
 log() { printf '[bootstrap] %s\n' "$*" >&2; }
 
+# Fingerprint of the built bundles inside this image's apps/. The bundle
+# filenames embed esbuild content hashes, so a stable hash of the sorted file
+# list catches any image bump that changes bundles. We persist this in the
+# flag file so we can detect when sites/assets/assets.json (on the
+# persistent erpnext_sites volume) has gone stale relative to the current
+# image's bundles — which otherwise renders the desk unstyled because every
+# CSS reference 404s.
+compute_assets_fingerprint() {
+  find /home/frappe/frappe-bench/apps -path '*/public/dist/*' -type f \
+    \( -name '*.css' -o -name '*.js' \) 2>/dev/null \
+    | sort | sha256sum | awk '{print $1}'
+}
+
+CURRENT_FP="$(compute_assets_fingerprint)"
+
+# Patch common_site_config.json so bench commands in this container can
+# reach the erpnext container's MariaDB and Redis over the Docker network.
+# We save the original and restore it on exit so erpnext is not affected.
+COMMON_CFG="/home/frappe/frappe-bench/sites/common_site_config.json"
+COMMON_CFG_BAK="${COMMON_CFG}.bootstrap_bak"
+
+restore_cfg() {
+  if [ ! -f "$COMMON_CFG_BAK" ]; then
+    return 0
+  fi
+  log "restoring original common_site_config.json"
+  if ! mv "$COMMON_CFG_BAK" "$COMMON_CFG"; then
+    # If this fails the ERPNext container is left with our cross-container
+    # db/redis patches and won't boot cleanly — log loudly so the operator
+    # sees it even if the main script already exited successfully.
+    log "ERROR: failed to restore $COMMON_CFG from $COMMON_CFG_BAK — the ERPNext container will need manual recovery"
+    return 1
+  fi
+}
+trap restore_cfg EXIT
+
+patch_cross_container_cfg() {
+  cp "$COMMON_CFG" "$COMMON_CFG_BAK"
+  log "patching common_site_config.json for cross-container DB/Redis access"
+  python3 - <<'PYEOF'
+import json, sys
+
+with open("/home/frappe/frappe-bench/sites/common_site_config.json") as f:
+    cfg = json.load(f)
+
+cfg["db_host"] = "erpnext"
+cfg["db_port"] = 3306
+
+for key in ("redis_cache", "redis_queue", "redis_socketio"):
+    cfg[key] = "redis://erpnext:6379"
+
+with open("/home/frappe/frappe-bench/sites/common_site_config.json", "w") as f:
+    json.dump(cfg, f, indent=1)
+
+print("[bootstrap] common_site_config.json patched", file=sys.stderr)
+PYEOF
+}
+
 if [ -f "$FLAG_FILE" ]; then
-  log "flag file present at $FLAG_FILE — nothing to do"
+  STORED_FP="$(cat "$FLAG_FILE")"
+  if [ -n "$STORED_FP" ] && [ "$STORED_FP" = "$CURRENT_FP" ]; then
+    log "flag file present and asset fingerprint matches — nothing to do"
+    exit 0
+  fi
+  log "asset fingerprint changed (image bump or pre-fingerprint flag) — refreshing manifest"
+  log "  stored:  ${STORED_FP:-<empty>}"
+  log "  current: $CURRENT_FP"
+  cd /home/frappe/frappe-bench
+  # Patch config so bench can reach erpnext's redis to invalidate the cached
+  # assets_json — without this the on-disk manifest is correct but ERPNext
+  # keeps serving stale CSS paths from its in-memory cache.
+  patch_cross_container_cfg
+  # bench walks apps.txt (which lists frappe_ai from the prior install) and
+  # imports every app, so frappe_ai must be pip-installed in this container's
+  # venv first or `bench build` fails with ModuleNotFoundError. Idempotent —
+  # safe to repeat on every image bump.
+  if [ -d "$APP_PATH" ]; then
+    ./env/bin/pip install -q -e "$APP_PATH"
+  fi
+  # bench build regenerates sites/assets/assets.json by scanning every app's
+  # dist/ directory; --app frappe_ai keeps the actual esbuild step fast since
+  # frappe/erpnext bundles are already present in the image and unchanged.
+  bench build --app frappe_ai
+  printf '%s\n' "$CURRENT_FP" > "$FLAG_FILE"
+  log "manifest refreshed; flag fingerprint updated"
   exit 0
 fi
 
@@ -78,48 +161,7 @@ fi
 
 log "target site: $SITE"
 
-# Patch common_site_config.json so bench commands in this container can
-# reach the erpnext container's MariaDB and Redis over the Docker network.
-# We save the original and restore it on exit so erpnext is not affected.
-COMMON_CFG="sites/common_site_config.json"
-COMMON_CFG_BAK="${COMMON_CFG}.bootstrap_bak"
-
-restore_cfg() {
-  if [ ! -f "$COMMON_CFG_BAK" ]; then
-    return 0
-  fi
-  log "restoring original common_site_config.json"
-  if ! mv "$COMMON_CFG_BAK" "$COMMON_CFG"; then
-    # If this fails the ERPNext container is left with our cross-container
-    # db/redis patches and won't boot cleanly — log loudly so the operator
-    # sees it even if the main script already exited successfully.
-    log "ERROR: failed to restore $COMMON_CFG from $COMMON_CFG_BAK — the ERPNext container will need manual recovery"
-    return 1
-  fi
-}
-trap restore_cfg EXIT
-
-cp "$COMMON_CFG" "$COMMON_CFG_BAK"
-log "patching common_site_config.json for cross-container DB/Redis access"
-python3 - <<'PYEOF'
-import json, sys
-
-with open("sites/common_site_config.json") as f:
-    cfg = json.load(f)
-
-# Point DB at the erpnext container (MariaDB exposes root@% after its init script).
-cfg["db_host"] = "erpnext"
-cfg["db_port"] = 3306
-
-# Point Redis at the erpnext container.
-for key in ("redis_cache", "redis_queue", "redis_socketio"):
-    cfg[key] = "redis://erpnext:6379"
-
-with open("sites/common_site_config.json", "w") as f:
-    json.dump(cfg, f, indent=1)
-
-print("[bootstrap] common_site_config.json patched", file=sys.stderr)
-PYEOF
+patch_cross_container_cfg
 
 log "pip-installing frappe_ai into bench virtualenv"
 ./env/bin/pip install -q -e "$APP_PATH"
@@ -164,7 +206,7 @@ log "seeding AI Assistant Settings (enabled=1, agent_url=$AGENT_URL_DEFAULT)"
 bench --site "$SITE" execute frappe.client.set_value \
   --kwargs "{\"doctype\": \"AI Assistant Settings\", \"name\": \"AI Assistant Settings\", \"fieldname\": {\"enabled\": 1, \"agent_url\": \"$AGENT_URL_DEFAULT\", \"timeout\": 30}}"
 
-log "writing flag file at $FLAG_FILE"
-touch "$FLAG_FILE"
+log "writing flag file with asset fingerprint at $FLAG_FILE"
+printf '%s\n' "$CURRENT_FP" > "$FLAG_FILE"
 
 log "done"
