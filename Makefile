@@ -69,7 +69,13 @@ reset:
 
 reload-frontend:
 	@echo "Rebuilding frappe_ai frontend bundle inside ERPNext container…"
-	$(COMPOSE) exec -u frappe erpnext bash -c "cd /home/frappe/frappe-bench/apps/frappe_ai/frontend && npm run build && cd /home/frappe/frappe-bench && bench build --app frappe_ai"
+	@# Compute the submodule's git short sha on the host (the container has
+	@# no .git) and pass it through to vite's build-version stamp.
+	@SHA=$$(git -C submodules/frappe_ai rev-parse --short HEAD 2>/dev/null || echo nogit); \
+	DIRTY=$$(git -C submodules/frappe_ai status --porcelain 2>/dev/null); \
+	if [ -n "$$DIRTY" ]; then SHA=$${SHA}-dirty; fi; \
+	echo "  build sha: $$SHA"; \
+	$(COMPOSE) exec -u frappe -e FRAPPE_AI_BUILD_SHA=$$SHA erpnext bash -c "cd /home/frappe/frappe-bench/apps/frappe_ai/frontend && npm run build && cd /home/frappe/frappe-bench && bench build --app frappe_ai"
 	@echo "Done. Hard-refresh browser (Cmd-Shift-R) to pick up the new bundle."
 
 reload-agent:
