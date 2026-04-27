@@ -4,7 +4,13 @@
 SHELL := /usr/bin/env bash
 COMPOSE := docker compose
 
-.PHONY: help up down logs ps shell reset update build
+.PHONY: help up down logs ps shell reset update build mcp-binary
+
+# The mcp Dockerfile expects a pre-built Linux binary at
+# submodules/frappe-mcp-server/frappe-mcp-server (see commit baacaad in that
+# repo). Build it on the host via the submodule's Makefile before docker build.
+mcp-binary:
+	$(MAKE) -C submodules/frappe-mcp-server build-linux
 
 help:
 	@echo "Vyogo Stack targets:"
@@ -17,7 +23,7 @@ help:
 	@echo "  make update   Pull submodule updates, then rebuild"
 	@echo "  make build    Rebuild images without starting"
 
-up:
+up: mcp-binary
 	@test -f .env || (echo "error: .env not found. Run: cp .env.example .env" && exit 1)
 	$(COMPOSE) up -d --build
 
@@ -37,10 +43,10 @@ ps:
 shell:
 	$(COMPOSE) exec erpnext bash
 
-build:
+build: mcp-binary
 	$(COMPOSE) build
 
-update:
+update: mcp-binary
 	git submodule update --remote --merge
 	$(COMPOSE) build
 	$(COMPOSE) up -d
