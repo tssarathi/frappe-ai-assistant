@@ -9,4 +9,4 @@
 [submodule "submodules/frappe-mcp-server"]
 	path = submodules/frappe-mcp-server
 	url = https://github.com/vyogotech/frappe-mcp-server.git
-	branch = feature/mcp-go-sdk
+	branch = main
