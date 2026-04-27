@@ -68,7 +68,11 @@ services:
       AI_AGENT_LLM_API_KEY: "${LLM_API_KEY}"
       AI_AGENT_LLM_MODEL: "${LLM_MODEL}"
       AI_AGENT_LLM_TEMPERATURE: "0.7"
-      AI_AGENT_LLM_MAX_TOKENS: "4096"
+      AI_AGENT_LLM_MAX_TOKENS: "8192"
+      # Ollama context window. Default 2048 is too small for our system
+      # prompt + tool results + final answer; bumped to 16k to prevent
+      # mid-response token corruption on multi-tool queries.
+      AI_AGENT_LLM_NUM_CTX: "16384"
       AI_AGENT_MCP_SERVER_URL: "http://mcp:8080/mcp"
       AI_AGENT_FRAPPE_URL: "http://erpnext:8000"
       AI_AGENT_LOG_LEVEL: "${LOG_LEVEL:-info}"
