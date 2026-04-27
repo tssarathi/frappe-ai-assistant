@@ -67,7 +67,10 @@ services:
       AI_AGENT_LLM_BASE_URL: "${LLM_BASE_URL}"
       AI_AGENT_LLM_API_KEY: "${LLM_API_KEY}"
       AI_AGENT_LLM_MODEL: "${LLM_MODEL}"
-      AI_AGENT_LLM_TEMPERATURE: "0.7"
+      # Lowered from 0.7 — qwen3.5:9b emits malformed tool-call XML at higher
+      # temps after several tool turns. 0.2 stabilises tool-arg syntax while
+      # still allowing some variety in prose.
+      AI_AGENT_LLM_TEMPERATURE: "0.2"
       AI_AGENT_LLM_MAX_TOKENS: "8192"
       # Ollama context window. Default 2048 is too small for our system
       # prompt + tool results + final answer; bumped to 16k to prevent
