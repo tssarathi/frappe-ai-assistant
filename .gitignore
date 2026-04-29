@@ -19,3 +19,6 @@ __pycache__/
 
 # Superpowers brainstorming companion (local mockups)
 .superpowers/
+
+# Claude Code session state
+.claude/
